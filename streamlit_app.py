@@ -1,5 +1,23 @@
 import streamlit as st
 from openai import OpenAI
+import io
+from docx import Document
+import PyPDF2
+
+def read_file(file):
+    file_type = file.name.split('.')[-1].lower()
+    if file_type == 'txt':
+        return file.getvalue().decode()
+    elif file_type == 'md':
+        return file.getvalue().decode()
+    elif file_type == 'docx':
+        doc = Document(io.BytesIO(file.getvalue()))
+        return '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+    elif file_type == 'pdf':
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.getvalue()))
+        return '\n'.join([page.extract_text() for page in pdf_reader.pages])
+    else:
+        return "Unsupported file format"
 
 # Show title and description.
 st.title("📄 Document question answering")
@@ -9,19 +27,16 @@ st.write(
 )
 
 # Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
 openai_api_key = st.text_input("OpenAI API Key", type="password")
 if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
 else:
-
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
 
     # Let the user upload a file via `st.file_uploader`.
     uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
+        "Upload a document (.txt, .md, .docx, or .pdf)", type=("txt", "md", "docx", "pdf")
     )
 
     # Ask the user for a question via `st.text_area`.
@@ -32,9 +47,8 @@ else:
     )
 
     if uploaded_file and question:
-
         # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
+        document = read_file(uploaded_file)
         messages = [
             {
                 "role": "user",
